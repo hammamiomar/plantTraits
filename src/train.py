@@ -1,11 +1,11 @@
 # train.py
 import os
-import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from tqdm import tqdm
 from src.data import plantDataset
 from src.model import ResNetFiLM
 from src.utils import calculate_normalization_stats
@@ -34,8 +34,8 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
 
     # Move the model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() or torch.backends.mps.is_available() else "cpu")
-    #device = torch.device("mps" if torch.mps.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() or torch.backends.mps.is_available() else "cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     model.to(device)
 
         # Create a directory to save the model weights
