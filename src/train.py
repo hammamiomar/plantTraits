@@ -1,5 +1,6 @@
 # train.py
 import os
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,7 +14,8 @@ from src.utils import init_weights
 
 def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     # Create an instance of the plantDataset (without transforms)
-    dataset = plantDataset(csv_file=csv_file, image_dir=image_dir)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -30,6 +32,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     # Create an instance of the model
+    
     model = ResNetFiLM(num_input_features=len(dataset.input_cols), num_output_features=len(dataset.target_cols))
     
     model.apply(init_weights)
@@ -39,18 +42,19 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     criterion = nn.MSELoss()  # Mean Squared Error loss for regression
     optimizer = optim.Adam(model.parameters(), lr=0.0001)  # Adam optimizer with learning rate 0.001
 
-    # Move the model to GPU if available
-    #device = torch.device("cuda" if torch.cuda.is_available() or torch.backends.mps.is_available() else "cpu")
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    model.to(device)
 
         # Create a directory to save the model weights
     checkpoint_dir = 'checkpoints'
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     best_loss = float('inf')  # Initialize the best loss to infinity
-
+    patience = 10  # Number of epochs to wait for improvement
+    best_loss = float('inf')
+    counter = 0
+    checkpoint_dir = 'checkpoints'
+    os.makedirs(checkpoint_dir, exist_ok=True)
     for epoch in range(num_epochs):
+        model.train()
         running_loss = 0.0
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch")
 
@@ -83,14 +87,20 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
         epoch_loss = running_loss / len(dataloader.dataset)
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
         
-        # Save the model weights if the current loss is better than the best loss
+        # Early stopping
         if epoch_loss < best_loss:
             best_loss = epoch_loss
-            torch.save(model.state_dict(), os.path.join(checkpoint_dir, f'best_model.pth'))
-        
-        # Save the model weights at regular intervals (e.g., every 5 epochs)
-        if (epoch + 1) % 5 == 0:
-            torch.save(model.state_dict(), os.path.join(checkpoint_dir, f'model_epoch_{epoch+1}.pth'))
+            counter = 0
+            # Save the best model weights
+            torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best_model.pth'))
+            # Save the target normalization statistics
+            np.save(os.path.join(checkpoint_dir, 'target_mean.npy'), target_mean)
+            np.save(os.path.join(checkpoint_dir, 'target_std.npy'), target_std)
+        else:
+            counter += 1
+            if counter >= patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
     print('Finished Training')
     # Save the final model weights
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'final_model.pth'))
