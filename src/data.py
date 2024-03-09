@@ -1,8 +1,6 @@
 import os
 import pandas as pd
 from torch.utils.data import Dataset
-from torchvision import transforms
-from torch.utils.data import DataLoader
 from PIL import Image
 import numpy as np
 
@@ -30,9 +28,6 @@ class plantDataset(Dataset):
         input_data = self.data.iloc[idx][self.input_cols].values.astype(np.float32)
         target_data = self.data.iloc[idx][self.target_cols].values.astype(np.float32)
 
-        return image, input_data, target_data, img_path
+        return image, input_data, target_data
 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),  
-    transforms.ToTensor()# Resize the images to a smaller size
-])
+
