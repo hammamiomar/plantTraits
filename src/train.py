@@ -14,13 +14,10 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     # Create an instance of the plantDataset (without transforms)
     dataset = plantDataset(csv_file=csv_file, image_dir=image_dir)
 
-    image_mean, image_std, input_data_mean, input_data_std = calculate_normalization_stats(dataset)
-
-    # Define the transformation pipeline with normalization
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=image_mean, std=image_std)
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Create a new instance of the plantDataset with the transformation pipeline
@@ -37,7 +34,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
 
     # Move the model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() or torch.backends.mps.is_available() else "cpu")
     #device = torch.device("mps" if torch.mps.is_available() else "cpu")
     model.to(device)
 
@@ -57,6 +54,8 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
             target_data = target_data.to(device)
             
             # Normalize input data and ancillary data
+            input_data_mean = input_data.mean(dim=0)
+            input_data_std = input_data.std(dim=0)
             input_data = (input_data - input_data_mean.to(device)) / input_data_std.to(device)
             
             # Zero the parameter gradients
