@@ -9,6 +9,7 @@ from tqdm import tqdm
 from src.data import plantDataset
 from src.model import ResNetFiLM
 from src.utils import calculate_normalization_stats
+from src.utils import init_weights
 
 def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     # Create an instance of the plantDataset (without transforms)
@@ -23,15 +24,20 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     # Create a new instance of the plantDataset with the transformation pipeline
     dataset = plantDataset(csv_file=csv_file, image_dir=image_dir, transform=transform)
 
+    target_mean = dataset.data[dataset.target_cols].mean().values
+    target_std = dataset.data[dataset.target_cols].std().values
     # Create a DataLoader
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     # Create an instance of the model
     model = ResNetFiLM(num_input_features=len(dataset.input_cols), num_output_features=len(dataset.target_cols))
+    
+    model.apply(init_weights)
+    model.to(device)
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error loss for regression
-    optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)  # Adam optimizer with learning rate 0.001
 
     # Move the model to GPU if available
     #device = torch.device("cuda" if torch.cuda.is_available() or torch.backends.mps.is_available() else "cpu")
@@ -57,7 +63,8 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
             input_data_mean = input_data.mean(dim=0)
             input_data_std = input_data.std(dim=0)
             input_data = (input_data - input_data_mean.to(device)) / input_data_std.to(device)
-            
+            target_data = (target_data - target_mean.to(device)) / target_std.to(device)
+ 
             # Zero the parameter gradients
             optimizer.zero_grad()
             

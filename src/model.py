@@ -36,7 +36,7 @@ class ResNetFiLM(nn.Module):
         super(ResNetFiLM, self).__init__()
         
         # Load pretrained ResNet model
-        self.resnet = models.resnet18(pretrained=True)
+        self.resnet = models.resnet18(weights='ResNet18_Weights.DEFAULT')
         
         # Remove the last fully connected layer
         num_features = self.resnet.fc.in_features

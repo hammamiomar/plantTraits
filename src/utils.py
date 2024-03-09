@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-
+import torch.nn as nn
 
 def calculate_normalization_stats(dataset):
     image_data_all = []
@@ -19,3 +19,12 @@ def calculate_normalization_stats(dataset):
     input_data_std = input_data_all.float().std(dim=0)
     
     return image_mean, image_std, input_data_mean, input_data_std
+
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.xavier_normal_(m.weight)
+        nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Conv2d):
+        nn.init.xavier_normal_(m.weight)
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
