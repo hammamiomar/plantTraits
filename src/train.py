@@ -60,14 +60,14 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
 
         for images, input_data, target_data in progress_bar:
             images = images.to(device)
-            input_data = input_data.to(device)
-            target_data = target_data.to(device)
+            input_data = input_data.float().to(device)
+            target_data = target_data.float().to(device)
             
             # Normalize input data and ancillary data
             input_data_mean = input_data.mean(dim=0)
             input_data_std = input_data.std(dim=0)
             input_data = (input_data - input_data_mean.to(device)) / input_data_std.to(device)
-            target_data = (target_data - torch.from_numpy(target_mean).to(device)) / torch.from_numpy(target_std).to(device)
+            target_data = (target_data - torch.from_numpy(target_mean).float().to(device)) / torch.from_numpy(target_std).float().to(device)
             # Zero the parameter gradients
             optimizer.zero_grad()
             
