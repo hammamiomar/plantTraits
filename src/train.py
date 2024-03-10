@@ -33,7 +33,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
 
     # Create an instance of the model
     
-    model = PlantModel(num_input_features=len(dataset.input_cols), num_output_features=len(dataset.target_cols))
+    model = PlantModel(num_ancillary_features=len(dataset.input_cols), num_output_features=len(dataset.target_cols))
     
     #model.apply(init_weights)
     model.to(device)
