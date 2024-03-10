@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 from src.data import plantDataset
-from src.model import ResNetFiLM
+from src.model import PlantModel
 from src.utils import calculate_normalization_stats
 from src.utils import init_weights
 
@@ -33,7 +33,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
 
     # Create an instance of the model
     
-    model = ResNetFiLM(num_input_features=len(dataset.input_cols), num_output_features=len(dataset.target_cols))
+    model = PlantModel(num_input_features=len(dataset.input_cols), num_output_features=len(dataset.target_cols))
     
     #model.apply(init_weights)
     model.to(device)
