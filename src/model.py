@@ -44,25 +44,36 @@ class ResNetFiLM(nn.Module):
         
         # FiLMed residual blocks
         self.film_blocks = nn.ModuleList([
-            ResidualBlock(num_features, 128),
-            ResidualBlock(128, 128),
-            ResidualBlock(128, 128),
-            ResidualBlock(128, 128)
+            ResidualBlock(num_features, 64),
+            ResidualBlock(64, 64)
         ])
         
         # FiLM generator
         self.film_generator = nn.Sequential(
-            nn.Linear(num_input_features, 512),
-            nn.ReLU(inplace=True),
-            nn.Linear(512, 2 * 128 * 4)  # 4 FiLMed blocks, each with 128 channels
+            nn.Linear(num_input_features, 256),
+            nn.LeakyReLU(inplace=True),
+            nn.Linear(256, 2 * 64 * 2)  # 2 FiLMed blocks, each with 64 channels
         )
         
         # Final classifier
-        self.conv1x1 = nn.Conv2d(128, 512, kernel_size=1)
+        self.conv1x1 = nn.Conv2d(64, 256, kernel_size=1)
         self.global_max_pool = nn.AdaptiveMaxPool2d(1)
-        self.fc1 = nn.Linear(512, 1024)
-        self.relu = nn.ReLU(inplace=True)
-        self.fc2 = nn.Linear(1024, num_output_features)
+        self.fc1 = nn.Linear(256, 512)
+        self.leaky_relu = nn.LeakyReLU(inplace=True)
+        self.fc2 = nn.Linear(512, num_output_features)
+        
+        # Initialize weights using Kaiming initialization
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_normal_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Conv2d):
+            nn.init.kaiming_normal_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
     
     def forward(self, image, input_data):
         # Extract features from the image using pretrained ResNet
@@ -70,8 +81,8 @@ class ResNetFiLM(nn.Module):
         
         # Generate FiLM parameters from input data
         film_params = self.film_generator(input_data)
-        film_params = film_params.view(-1, 4, 128 * 2)
-        gammas, betas = torch.split(film_params, 128, dim=2)
+        film_params = film_params.view(-1, 2, 64 * 2)
+        gammas, betas = torch.split(film_params, 64, dim=2)
         
         # Pass features through FiLMed residual blocks
         for i, block in enumerate(self.film_blocks):
@@ -82,7 +93,7 @@ class ResNetFiLM(nn.Module):
         out = self.global_max_pool(out)
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
-        out = self.relu(out)
+        out = self.leaky_relu(out)
         out = self.fc2(out)
         
         return out
