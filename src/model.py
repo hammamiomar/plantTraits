@@ -39,7 +39,7 @@ class PlantModel(nn.Module):
         super(PlantModel, self).__init__()
 
         # Image feature extractor
-        self.feature_extractor = models.resnet18(pretrained=True)
+        self.feature_extractor = models.resnet18(weights='ResNet18_Weights.DEFAULT')
         num_features = self.feature_extractor.fc.in_features
         self.feature_extractor = nn.Sequential(*list(self.feature_extractor.children())[:-2])
 
@@ -49,7 +49,7 @@ class PlantModel(nn.Module):
         # FiLM generator
         self.film_generator = nn.Sequential(
             nn.Linear(128, 256),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Linear(256, 2 * 128)
         )
 
@@ -60,7 +60,7 @@ class PlantModel(nn.Module):
         # Fusion and prediction
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc1 = nn.Linear(128 + 128, 256)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.LeakyReLU(inplace=True)
         self.fc2 = nn.Linear(256, num_output_features)
 
         # Weight initialization

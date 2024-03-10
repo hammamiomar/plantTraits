@@ -12,9 +12,10 @@ from src.model import PlantModel
 from src.utils import calculate_normalization_stats
 from src.utils import init_weights
 
-def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
+def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=10):
     # Create an instance of the plantDataset (without transforms)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device="mps"
     print("Using device:", device)
 
     transform = transforms.Compose([
@@ -40,7 +41,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error loss for regression
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)  # Adam optimizer with learning rate 0.001
+    optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
 
 
         # Create a directory to save the model weights
@@ -48,7 +49,6 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     best_loss = float('inf')  # Initialize the best loss to infinity
-    patience = 10  # Number of epochs to wait for improvement
     best_loss = float('inf')
     counter = 0
     checkpoint_dir = 'checkpoints'
@@ -97,7 +97,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4):
             np.save(os.path.join(checkpoint_dir, 'target_std.npy'), target_std)
         else:
             counter += 1
-            if counter >= patience:
+            if counter >= early_stopping_patience:
                 print(f"Early stopping at epoch {epoch+1}")
                 break
     print('Finished Training')
