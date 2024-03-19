@@ -41,7 +41,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4,early_sto
 
     # Define loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error loss for regression
-    optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)  # Adam optimizer with learning rate 0.001
 
 
         # Create a directory to save the model weights
@@ -49,7 +49,6 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4,early_sto
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     best_loss = float('inf')  # Initialize the best loss to infinity
-    best_loss = float('inf')
     counter = 0
     checkpoint_dir = 'checkpoints'
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -64,10 +63,10 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4,early_sto
             target_data = target_data.float().to(device)
             
             # Normalize input data and ancillary data
-            input_data_mean = input_data.mean(dim=0)
-            input_data_std = input_data.std(dim=0)
-            input_data = (input_data - input_data_mean.to(device)) / input_data_std.to(device)
-            target_data = (target_data - torch.from_numpy(target_mean).float().to(device)) / torch.from_numpy(target_std).float().to(device)
+            #input_data_mean = input_data.mean(dim=0)
+            #input_data_std = input_data.std(dim=0)
+            #input_data = (input_data - input_data_mean.to(device)) / input_data_std.to(device)
+            #target_data = (target_data - torch.from_numpy(target_mean).float().to(device)) / torch.from_numpy(target_std).float().to(device)
             # Zero the parameter gradients
             optimizer.zero_grad()
             
@@ -79,7 +78,7 @@ def train(csv_file,image_dir,batch_size=32,num_epochs=10,num_workers=4,early_sto
             loss.backward()
             optimizer.step()
             
-            running_loss += loss.item() * images.size(0)
+            running_loss += loss.item() #* images.size(0)
 
             progress_bar.set_postfix(loss=loss.item())
         

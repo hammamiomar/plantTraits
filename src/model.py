@@ -59,7 +59,7 @@ class PlantModel(nn.Module):
 
         # Fusion and prediction
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.Linear(128 + 128, 256)
+        self.fc1 = nn.LazyLinear(256)
         self.relu = nn.LeakyReLU(inplace=True)
         self.fc2 = nn.Linear(256, num_output_features)
 
@@ -99,6 +99,9 @@ class PlantModel(nn.Module):
         pooled_features = self.global_avg_pool(modulated_features)
         pooled_features = pooled_features.view(pooled_features.size(0), -1)
         fused_features = torch.cat((pooled_features, ancillary_embedding), dim=1)
+ 
+        #image_features = image_features.view(image_features.size(0), -1)
+        #fused_features = torch.cat((image_features, ancillary_embedding), dim=1)
         out = self.fc1(fused_features)
         out = self.relu(out)
         out = self.fc2(out)
