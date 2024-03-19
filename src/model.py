@@ -59,7 +59,7 @@ class PlantModel(nn.Module):
 
         # Fusion and prediction
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.LazyLinear(256)
+        self.fc1 = nn.Linear(256,256)
         self.relu = nn.LeakyReLU(inplace=True)
         self.fc2 = nn.Linear(256, num_output_features)
 
