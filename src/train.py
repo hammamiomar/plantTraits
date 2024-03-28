@@ -14,6 +14,16 @@ from src.model import PlantModel
 from src.utils import calculate_normalization_stats
 from src.utils import init_weights
 
+class R2Loss(torch.nn.Module):
+    def __init__(self):
+        super(R2Loss, self).__init__()
+
+    def forward(self, y_true, y_pred):
+        SS_res = torch.sum((y_true - y_pred)**2, axis=0)
+        SS_tot = torch.sum((y_true - torch.mean(y_true, axis=0))**2, axis=0)
+        r2_loss = SS_res / (SS_tot + 1e-6)
+        return torch.mean(r2_loss)
+    
 def find_latest_checkpoint(checkpoint_dir):
     # Define the regex pattern for matching filenames and extracting epoch numbers
     pattern = re.compile(r"checkpoint_epoch_(\d+).pth")
@@ -34,7 +44,7 @@ def find_latest_checkpoint(checkpoint_dir):
 
     return latest_checkpoint_file
 
-def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=50,device="cuda"):
+def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=50,device="cuda",fresh_start=True):
     torch.manual_seed(420)
     # Create an instance of the plantDataset (without transforms)
     #device = torch.device("cuda" if torch.cuda.is_available()else "cpu")
@@ -60,7 +70,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     model.to(device)
 
     # Define loss function and optimizer
-    criterion = nn.MSELoss()  # Mean Average Error loss for regression
+    criterion = R2Loss()  # Mean Average Error loss for regression
     optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
 
     #scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(dataloader), epochs=num_epochs)
@@ -74,7 +84,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     os.makedirs(checkpoint_dir, exist_ok=True)
     
     latestCheckpoint=find_latest_checkpoint(checkpoint_dir)
-    if latestCheckpoint:
+    if latestCheckpoint and fresh_start==False:
         checkpoint_path = os.path.join(checkpoint_dir, latestCheckpoint)
         checkpoint = torch.load(checkpoint_path,map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -126,7 +136,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
             torch.save({
                 'epoch':epoch+1,
                 'model_state_dict':model.state_dict(),
-                'optimizer_state_dict':optimizer.state_dict,
+                'optimizer_state_dict':optimizer.state_dict(),
                 'best_loss':best_loss}, best_model_path)
             print(f"Best model saved at '{best_model_path}'")
         else:
@@ -137,7 +147,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
                 torch.save({
                 'epoch':epoch+1,
                 'model_state_dict':model.state_dict(),
-                'optimizer_state_dict':optimizer.state_dict,
+                'optimizer_state_dict':optimizer.state_dict(),
                 'best_loss':best_loss}, early_stop_model_path)
                 print(f"Early stop model saved at '{early_stop_model_path}'")
                 break
@@ -148,7 +158,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
             torch.save({
                 'epoch':epoch+1,
                 'model_state_dict':model.state_dict(),
-                'optimizer_state_dict':optimizer.state_dict,
+                'optimizer_state_dict':optimizer.state_dict(),
                 'best_loss':best_loss}, checkpoint_path)
             print(f"Checkpoint saved at '{checkpoint_path}'")
 
