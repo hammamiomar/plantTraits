@@ -79,7 +79,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
             optimizer.step()
             scheduler.step()
             
-            running_loss += loss.item() #* images.size(0)
+            running_loss += loss.item() * images.size(0)
 
             progress_bar.set_postfix(loss=loss.item())
             
