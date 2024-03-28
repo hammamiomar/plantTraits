@@ -87,22 +87,22 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
         
         #Early stopping
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
-            counter = 0
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            best_model_path = os.path.join(checkpoint_dir, f'best_model_{timestamp}.pth')
-            torch.save(model.state_dict(), best_model_path)
-            print(f"Best model saved at '{best_model_path}'")
-        else:
-            counter += 1
-            if counter >= early_stopping_patience:
-                print(f"Early stopping at epoch {epoch+1}")
-                timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-                early_stop_model_path = os.path.join(checkpoint_dir, f'early_stop_model_{timestamp}.pth')
-                torch.save(model.state_dict(), early_stop_model_path)
-                print(f"Early stop model saved at '{early_stop_model_path}'")
-                break
+        # if epoch_loss < best_loss:
+        #     best_loss = epoch_loss
+        #     counter = 0
+        #     timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        #     best_model_path = os.path.join(checkpoint_dir, f'best_model_{timestamp}.pth')
+        #     torch.save(model.state_dict(), best_model_path)
+        #     print(f"Best model saved at '{best_model_path}'")
+        # else:
+        #     counter += 1
+        #     if counter >= early_stopping_patience:
+        #         print(f"Early stopping at epoch {epoch+1}")
+        #         timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        #         early_stop_model_path = os.path.join(checkpoint_dir, f'early_stop_model_{timestamp}.pth')
+        #         torch.save(model.state_dict(), early_stop_model_path)
+        #         print(f"Early stop model saved at '{early_stop_model_path}'")
+        #         break
 
         # Save a checkpoint every 5 epochs with timestamp
         if (epoch + 1) % 5 == 0:
