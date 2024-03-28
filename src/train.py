@@ -152,8 +152,8 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
                 print(f"Early stop model saved at '{early_stop_model_path}'")
                 break
 
-        # Save a checkpoint every 5 epochs with timestamp
-        if (epoch + 1) % 5 == 0:
+        # Save a checkpoint every 20 epochs with timestamp
+        if (epoch + 1) % 20 == 0:
             checkpoint_path = os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pth')
             torch.save({
                 'epoch':epoch+1,
