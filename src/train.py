@@ -112,8 +112,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     
     latestCheckpoint = lambda checkpoint_path: checkpoint_path if checkpoint_path else None
     if latestCheckpoint:
-        checkpoint_path = os.path.join(checkpoint_dir, latestCheckpoint)
-        checkpoint = torch.load(checkpoint_path,map_location=device)
+        checkpoint = torch.load(latestCheckpoint,map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch']
