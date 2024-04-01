@@ -110,7 +110,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     checkpoint_dir = 'checkpoints'
     os.makedirs(checkpoint_dir, exist_ok=True)
     
-    latestCheckpoint = lambda checkpoint_path: checkpoint_path if checkpoint_path else None
+    latestCheckpoint = lambda checkpoint_path: checkpoint_path if checkpoint_path else False
     if latestCheckpoint:
         checkpoint = torch.load(latestCheckpoint,map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
