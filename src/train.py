@@ -118,7 +118,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     criterion = R2Loss()  # Mean Average Error loss for regression
     optimizer = optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer with learning rate 0.001
 
-    #scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(dataloader), epochs=num_epochs)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(trainDataloader), epochs=num_epochs)
 
     start_epoch = 0
     best_loss = float('inf')  # Initialize the best loss to infinity
@@ -156,6 +156,7 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
             
             loss.backward()
             optimizer.step()
+            scheduler.step()
             
             running_loss += loss.item() * images.size(0)
             

@@ -12,7 +12,7 @@ from src.model import PlantModel
 def load_model(model_path, device):
     checkpoint = torch.load(model_path, map_location=device)
     model = PlantModel(num_ancillary_features=163, num_output_features=6)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint)
     model.to(device)
     model.eval()
     return model
@@ -22,7 +22,7 @@ def preprocess_image(image_bytes, transform):
     image = transform(image)
     return image.unsqueeze(0)
 
-def predict(model, test_data, yScaler, device):
+def predict(model, test_data, yScaler, xScaler, device):
     input_cols = [col for col in test_data.columns if not col.startswith('X') and col not in['id', 'file_path', 'jpeg_bytes']]
     log_transformed_features = [1,2,3,4,5]
     predictions = []
@@ -32,10 +32,13 @@ def predict(model, test_data, yScaler, device):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
+        
+    test_data[input_cols] = xScaler.transform(test_data[input_cols])
     
     with torch.no_grad():
         for _, row in tqdm(test_data.iterrows(), total=len(test_data), desc="Predicting"):
             image_bytes = row['jpeg_bytes']
+
             ancillary_data = row[input_cols].values.astype(np.float32)
             
             image = preprocess_image(image_bytes, transform)
@@ -52,31 +55,34 @@ def predict(model, test_data, yScaler, device):
     
     return predictions
 
-def test(test_data_path):
+def test(test_data_path, model_path="checkpoints/best_model.pth",xScaler_path="data/X_Scaler.pkl", yScaler_path="data/yScaler.pkl",output_path="data/y_test.csv",device="mps"):
     columns = ['X4', 'X11','X18','X50','X26','X3112']
     #log10Columns=['X11','X18','X50','X26','X3112']
     # Set the device
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+    device = torch.device(device)
 
     # Load the trained model
-    model_path = "checkpoints/best_model.pth"
     model = load_model(model_path, device)
 
     # Load the yScaler
-    with open("data/yScaler.pkl", "rb") as f:
+    with open(yScaler_path, "rb") as f:
         yScaler = pickle.load(f)
+        
+    with open(xScaler_path, "rb") as f:
+        XScaler = pickle.load(f)
+
 
     # Load the test data
     with open(test_data_path, 'rb') as f:
         test_data = pickle.load(f)
 
     # Perform predictions
-    predicted_outputs = predict(model, test_data, yScaler, device)
+    predicted_outputs = predict(model, test_data, yScaler,XScaler, device)
 
     # Create a DataFrame with the predicted outputs
     output_df = pd.DataFrame(predicted_outputs, columns=columns)
     output_df.insert(0, "id", test_data["id"])
 
     # Save the output DataFrame to a CSV file
-    output_df.to_csv("data/y_test.csv", index=False)
-    print("Predictions saved to 'data/y_test.csv'")
+    output_df.to_csv(output_path, index=False)
+    print("Predictions saved to {output_path}'")
