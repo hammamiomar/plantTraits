@@ -51,25 +51,7 @@ class R2Metric(torch.nn.Module):
         self.SS_tot = torch.zeros(6).to(device)
         self.num_samples = torch.zeros(6).to(device)
     
-def find_latest_checkpoint(checkpoint_dir):
-    # Define the regex pattern for matching filenames and extracting epoch numbers
-    pattern = re.compile(r"checkpoint_epoch_(\d+).pth")
-
-    # Initialize variables to keep track of the highest epoch and corresponding file
-    highest_epoch = -1
-    latest_checkpoint_file = None
-
-    # Iterate over all files in the checkpoint directory
-    for filename in os.listdir(checkpoint_dir):
-        match = pattern.match(filename)
-        if match:
-            # Extract the epoch number from the filename
-            epoch_num = int(match.group(1))
-            if epoch_num > highest_epoch:
-                highest_epoch = epoch_num
-                latest_checkpoint_file = filename
-
-    return latest_checkpoint_file
+    
 def get_data_split(XPath,yPath):
     with open(XPath, 'rb') as f:
             X = pickle.load(f)
@@ -84,7 +66,7 @@ def get_data_split(XPath,yPath):
         pickle.dump(scaler_data, f)
     return X_train, X_val, y_train, y_val
         
-def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=50,device="cuda",fresh_start=True):
+def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=50,device="cuda",checkpoint_path=None):
     torch.manual_seed(420)
     device = torch.device(device)
     print("Using device:", device)
@@ -128,8 +110,8 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     checkpoint_dir = 'checkpoints'
     os.makedirs(checkpoint_dir, exist_ok=True)
     
-    latestCheckpoint=find_latest_checkpoint(checkpoint_dir)
-    if latestCheckpoint and fresh_start==False:
+    latestCheckpoint = lambda checkpoint_path: checkpoint_path if checkpoint_path else None
+    if latestCheckpoint:
         checkpoint_path = os.path.join(checkpoint_dir, latestCheckpoint)
         checkpoint = torch.load(checkpoint_path,map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -231,7 +213,11 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     # Save the final model with a timestamp
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     final_model_path = os.path.join(checkpoint_dir, f'final_model_{timestamp}.pth')
-    torch.save(model.state_dict(), final_model_path)
+    torch.save(torch.save({
+                'epoch':epoch+1,
+                'model_state_dict':model.state_dict(),
+                'optimizer_state_dict':optimizer.state_dict(),
+                'best_loss':best_loss}, checkpoint_path), final_model_path)
     print(f"Final model saved at '{final_model_path}'")
     
     
