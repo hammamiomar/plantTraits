@@ -59,7 +59,7 @@ def test(test_data_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
     # Load the trained model
-    model_path = "checkpoints/checkpoint_epoch_60.pth"
+    model_path = "checkpoints/best_model.pth"
     model = load_model(model_path, device)
 
     # Load the yScaler

@@ -9,11 +9,13 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 from src.data import plantDataset
 from src.model import PlantModel
 from src.utils import calculate_normalization_stats
 from src.utils import init_weights
 
+device = torch.device("cuda")
 class R2Loss(torch.nn.Module):
     def __init__(self):
         super(R2Loss, self).__init__()
@@ -23,6 +25,29 @@ class R2Loss(torch.nn.Module):
         SS_tot = torch.sum((y_true - torch.mean(y_true, axis=0))**2, axis=0)
         r2_loss = SS_res / (SS_tot + 1e-6)
         return torch.mean(r2_loss)
+
+class R2Metric(torch.nn.Module):
+    def __init__(self):
+        super(R2Metric, self).__init__()
+        self.SS_res = torch.zeros(6).to(device)
+        self.SS_tot = torch.zeros(6).to(device)
+        self.num_samples = torch.zeros(6).to(device)
+
+    def update_state(self, y_true, y_pred):
+        SS_res = torch.sum((y_true - y_pred)**2, axis=0)
+        SS_tot = torch.sum((y_true - torch.mean(y_true, axis=0))**2, axis=0)
+        self.SS_res += SS_res
+        self.SS_tot += SS_tot
+        self.num_samples += y_true.shape[0]
+
+    def forward(self):
+        r2 = 1 - self.SS_res / (self.SS_tot + 1e-6)
+        return torch.mean(r2)
+
+    def reset_states(self):
+        self.SS_res = torch.zeros(6).to(device)
+        self.SS_tot = torch.zeros(6).to(device)
+        self.num_samples = torch.zeros(6).to(device)
     
 def find_latest_checkpoint(checkpoint_dir):
     # Define the regex pattern for matching filenames and extracting epoch numbers
@@ -46,11 +71,9 @@ def find_latest_checkpoint(checkpoint_dir):
 
 def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=50,device="cuda",fresh_start=True):
     torch.manual_seed(420)
-    # Create an instance of the plantDataset (without transforms)
-    #device = torch.device("cuda" if torch.cuda.is_available()else "cpu")
-    #ddevice="mps"
+    device = torch.device(device)
     print("Using device:", device)
-
+    
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -58,13 +81,16 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     ])
 
     # Create a new instance of the plantDataset with the transformation pipeline
-    dataset = plantDataset(X_train=X_train, y_train=y_train, transform=transform)
+    fullDataset = plantDataset(X_train=X_train, y_train=y_train, transform=transform)
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-
-    # Create an instance of the model
+    train_size = int(0.8 * len(fullDataset))
+    test_size = len(fullDataset) - train_size
+    trainDataset, valDataset = torch.utils.data.random_split(fullDataset, [train_size, test_size])
+    trainDataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     
-    model = PlantModel(num_ancillary_features=len(dataset.input_cols), num_output_features=dataset.y_train.shape[1])
+    valDataloader = DataLoader(valDataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    
+    model = PlantModel(num_ancillary_features=len(fullDataset.input_cols), num_output_features=fullDataset.y_train.shape[1])
     
     #model.apply(init_weights)
     model.to(device)
@@ -93,41 +119,59 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
         best_loss = checkpoint['best_loss']
         print(f"Loaded checkpoint from '{checkpoint_path}' at epoch {start_epoch}")
     
-    
+    r2_metric = R2Metric().to(device)
     for epoch in range(start_epoch,num_epochs):
         model.train()
         running_loss = 0.0
-        progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch")
+        total_samples_train=0.0
+        progress_bar = tqdm(trainDataloader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch")
 
         for images, input_data, target_data in progress_bar:
             images = images.to(device)
             input_data = input_data.float().to(device)
             target_data = target_data.float().to(device)
-            
-            # Normalize input data and ancillary data
-            #input_data_mean = input_data.mean(dim=0)
-            #input_data_std = input_data.std(dim=0)
-            #input_data = (input_data - input_data_mean.to(device)) / input_data_std.to(device)
-            #target_data = (target_data - torch.from_numpy(target_mean).float().to(device)) / torch.from_numpy(target_std).float().to(device)
-            # Zero the parameter gradients
+    
             optimizer.zero_grad()
-            
-            # Forward pass
             outputs = model(images, input_data)
             loss = criterion(outputs, target_data)
             
-            # Backward pass and optimization
             loss.backward()
             optimizer.step()
-            #scheduler.step()
             
             running_loss += loss.item() * images.size(0)
+            
+            r2_metric.update_state(target_data, outputs)
+            total_samples_train += target_data.size(0)
 
             progress_bar.set_postfix(loss=loss.item())
-            
-        epoch_loss = running_loss / len(dataloader.dataset)
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}")
         
+        train_r2 = r2_metric()
+        r2_metric.reset_states()
+
+        model.eval()
+        total_val_loss = 0
+        total_samples_val = 0
+
+        with torch.no_grad():
+            for images, input_data,target_data in valDataloader:
+                images = images.to(device)
+                input_data = input_data.float().to(device)
+                target_data = target_data.float().to(device)
+                
+                outputs = model(images, input_data)
+                
+                val_loss = criterion(target_data, outputs)
+                total_val_loss += val_loss.item()
+
+                # Obliczanie R^2 na zbiorze walidacyjnym
+                r2_metric.update_state(target_data, outputs)
+                total_samples_val += target_data.size(0)
+            
+            val_r2 = r2_metric()
+            r2_metric.reset_states()
+            
+        epoch_loss = running_loss / len(trainDataloader.dataset)
+        print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {running_loss/len(trainDataloader):.4f}, Train R^2: {train_r2:.4f}, Val Loss: {total_val_loss/len(valDataloader):.4f}, Val R^2: {val_r2:.4f}")        
         #Early stopping
         if epoch_loss < best_loss:
             best_loss = epoch_loss
