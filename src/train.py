@@ -110,14 +110,14 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     checkpoint_dir = 'checkpoints'
     os.makedirs(checkpoint_dir, exist_ok=True)
     
-    latestCheckpoint = lambda checkpoint_path: checkpoint_path if checkpoint_path else False
-    if latestCheckpoint:
-        checkpoint = torch.load(latestCheckpoint,map_location=device)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        start_epoch = checkpoint['epoch']
-        best_loss = checkpoint['best_loss']
-        print(f"Loaded checkpoint from '{checkpoint_path}' at epoch {start_epoch}")
+    # latestCheckpoint = lambda checkpoint_path: checkpoint_path if checkpoint_path else False
+    # if latestCheckpoint:
+    #     checkpoint = torch.load(latestCheckpoint,map_location=device)
+    #     model.load_state_dict(checkpoint['model_state_dict'])
+    #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    #     start_epoch = checkpoint['epoch']
+    #     best_loss = checkpoint['best_loss']
+    #     print(f"Loaded checkpoint from '{checkpoint_path}' at epoch {start_epoch}")
     
     r2_metric = R2Metric().to(device)
     for epoch in range(start_epoch,num_epochs):
