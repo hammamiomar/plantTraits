@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import pickle
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
@@ -68,7 +70,20 @@ def find_latest_checkpoint(checkpoint_dir):
                 latest_checkpoint_file = filename
 
     return latest_checkpoint_file
+def get_data_split(XPath,yPath):
+    with open(XPath, 'rb') as f:
+            X = pickle.load(f)
+    y = np.load(yPath)
+    input_cols = [col for col in X.columns if not col.startswith('X') and col not in['id', 'file_path', 'jpeg_bytes']]
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    scaler_data = StandardScaler()
+    X_train[input_cols] = scaler_data.fit_transform(X_train[input_cols])
+    X_val[input_cols] = scaler_data.transform(X_val[input_cols])
 
+    with open('data/X_Scaler.pkl', 'wb') as f:
+        pickle.dump(scaler_data, f)
+    return X_train, X_val, y_train, y_val
+        
 def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stopping_patience=50,device="cuda",fresh_start=True):
     torch.manual_seed(420)
     device = torch.device(device)
@@ -81,16 +96,20 @@ def train(X_train,y_train,batch_size=32,num_epochs=10,num_workers=4,early_stoppi
     ])
 
     # Create a new instance of the plantDataset with the transformation pipeline
-    fullDataset = plantDataset(X_train=X_train, y_train=y_train, transform=transform)
+    #fullDataset = plantDataset(X_train=X_train, y_train=y_train, transform=transform)
 
-    train_size = int(0.8 * len(fullDataset))
-    test_size = len(fullDataset) - train_size
-    trainDataset, valDataset = torch.utils.data.random_split(fullDataset, [train_size, test_size])
+    #train_size = int(0.8 * len(fullDataset))
+    #test_size = len(fullDataset) - train_size
+    #trainDataset, valDataset = torch.utils.data.random_split(fullDataset, [train_size, test_size])
+    X_train, X_val, y_train, y_val = get_data_split(X_train,y_train)
+    trainDataset = plantDataset(X_train, y_train, transform=transform)
+    valDataset = plantDataset(X_val, y_val, transform=transform)
+    
     trainDataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     
     valDataloader = DataLoader(valDataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     
-    model = PlantModel(num_ancillary_features=len(fullDataset.input_cols), num_output_features=fullDataset.y_train.shape[1])
+    model = PlantModel(num_ancillary_features=len(trainDataset.input_cols), num_output_features=trainDataset.y_train.shape[1])
     
     #model.apply(init_weights)
     model.to(device)

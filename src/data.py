@@ -10,9 +10,8 @@ from PIL import Image
 
 class plantDataset(Dataset):
     def __init__(self, X_train, y_train, transform=None):
-        with open(X_train, 'rb') as f:
-            self.X_train = pickle.load(f)
-        self.y_train = np.load(y_train)
+        self.X_train = X_train
+        self.y_train = y_train
         self.X_jpegs = self.X_train['jpeg_bytes'].values
         self.transform = transform
 
